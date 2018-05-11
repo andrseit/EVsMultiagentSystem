@@ -1,6 +1,7 @@
 package station;
 
 import messaging.message_types.OfferMessage;
+import messaging.message_types.RequestMessage;
 import station.negotiation.SuggestionsComputer;
 import station.optimize.Scheduler;
 import system.Agent;
@@ -23,14 +24,22 @@ public class Station extends Agent {
     private Schedule schedule;
     private SuggestionsComputer suggestionsComputer;
     private ArrayList<EVObject> evBidders;
+    private ArrayList<EVObject> notCharged;
+    private int currentSlot;
+    private boolean suggestions;
+
+    private boolean distance; // if distance matters
 
     public Station(String type, int globalID, Mailbox receiversMailbox, MessageList incomingMessages,
                    StationData data, int slotsNumber) {
         super(type, globalID, receiversMailbox, incomingMessages);
         this.data = data;
         evBidders = new ArrayList<>();
+        notCharged = new ArrayList<>();
         schedule = new Schedule(slotsNumber, data.getChargersNumber(), data.getScheduler());
         suggestionsComputer = new SuggestionsComputer();
+        suggestions = false;
+        currentSlot = 0;
     }
 
     public void createMessage () {
@@ -42,15 +51,18 @@ public class Station extends Agent {
         System.out.println("Station_" + getGlobalID()+ " is receiving requests:");
         Message message;
         while ((message = getMessenger().nextMessage()) != null) {
-            if (message instanceof ChargingSettingsMessage)
-                manageChargingSettingsMessage((ChargingSettingsMessage) message);
-             else
+            if (message instanceof RequestMessage)
+                manageChargingSettingsMessage((RequestMessage) message);
+             else {
                 System.err.println("Wrong message type!");
+                System.exit(1);
+            }
         }
     }
 
     public void sendOfferMessages () {
         // create offer message where an offer exists
+        //System.out.println(evBiddersString());
         for (int e = 0; e < evBidders.size(); e++) {
             EVObject ev = evBidders.get(e);
             int globalID = ev.getGlobalID();
@@ -80,9 +92,9 @@ public class Station extends Agent {
         //System.out.println(evBiddersString());
         //System.out.println("Sender: " + sender);
         if (text.equals("ACCEPT")) {
-            System.out.println("EV_" + sender + " accepted");
+            System.out.println("EV_" + sender + " accepted " + ev.getLocalID());
             schedule.addToSchedule(ev.getLocalID());
-            removeBidder(ev);
+            evBidders.remove(ev);
         }
         // if the EV is waiting leave it in the evBidders list to continue with the negotiations
         else if (text.equals("WAITING")) {
@@ -91,15 +103,20 @@ public class Station extends Agent {
         // if the EV rejected the offer then remove it from evBidders
         else if (text.equals("REJECT")) {
             System.out.println("EV_" + sender + " rejected the offer");
-            removeBidder(ev);
+            evBidders.remove(ev);
         } else {
-            System.out.println("EV_" + sender + " sent wrong Message");
+            System.err.println("EV_" + sender + " sent wrong Message");
+            System.err.println("Message was: " + message.getText());
+            System.exit(1);
         }
+        if (evBidders.isEmpty())
+            suggestions = false;
     }
 
     protected void manageChargingSettingsMessage(ChargingSettingsMessage message) {
-        int sender = message.getSenderID();
-        ChargingSettings settings = message.getSettings();
+        RequestMessage m = (RequestMessage) message;
+        int sender = m.getSenderID();
+        ChargingSettings settings = m.getSettings();
         int arrival = settings.getArrival();
         int departure = settings.getDeparture();
         int energy = settings.getEnergy();
@@ -109,40 +126,77 @@ public class Station extends Agent {
         int listID = evBidders.size() - 1;
         EVObject ev = new EVObject(sender, listID, new ChargingSettings(arrival, departure, energy));
         ev.setLocalID(evBidders.size());
+        if (distance)
+            ev.setXY(m.getX(), m.getY(), data.getX(), data.getY());
         evBidders.add(ev);
     }
 
-    public String evBiddersString () {
+    public String evBiddersString (ArrayList<EVObject> evs) {
         String str = "";
-        for (EVObject ev: evBidders) {
+        for (EVObject ev: evs) {
             str = str + ev.toString() + "\n";
         }
         return str;
     }
 
+    public void computeOffers () {
+        notCharged.clear();
+        computeSchedule();
+        if (suggestions) {
+            schedule.updateTemporaryChargers();
+            findNotCharged();
+            System.out.println(notCharged);
+            if (!notCharged.isEmpty()) {
+                computeSuggestions();
+            }
+        } else {
+            suggestions = true;
+        }
+        setOffers();
+    }
+
     public void computeSchedule () {
+        updateLocalIDs(evBidders);
+        System.out.println("Bidders before optimal: ");
+        System.out.println(evBiddersString(evBidders));
+
+        System.out.println("Available Chargers: ");
+        ArrayTransformations.printOneDimensionalArray(schedule.getRemainingChargers());
+
+        System.out.println("---");
         Scheduler scheduler = data.getScheduler();
+        scheduler.setCurrentSlot(currentSlot);
         scheduler.compute(evBidders, schedule.getRemainingChargers(), schedule.getPrice());
         schedule.setCPSchedule(scheduler.getSchedule());
         schedule.setWhoCharged(scheduler.getWhoCharged());
-        setOffers();
+        System.out.println("Optimal Schedule: ");
         ArrayTransformations.printTwoDimensionalArray(scheduler.getSchedule());
     }
 
     public void computeSuggestions () {
-        updateLocalIDs();
-        suggestionsComputer.compute(evBidders, schedule.getRemainingChargers(), schedule.getPrice());
-        schedule.setCPSchedule(suggestionsComputer.getSchedule());
-        schedule.setWhoCharged(suggestionsComputer.getWhoCharged());
-        setOffers();
-        System.out.println("CP Schedule");
-        ArrayTransformations.printTwoDimensionalArray(schedule.getCpSchedule());
+        updateLocalIDs(notCharged);
+        System.out.println("Bidders before suggestions: ");
+        System.out.println(evBiddersString(notCharged));
+
+        System.out.println("Available Chargers: ");
+        ArrayTransformations.printOneDimensionalArray(schedule.getTempRemainingChargers());
+
+        System.out.println("---");
+        suggestionsComputer.setCurrentSlot(currentSlot);
+        suggestionsComputer.compute(notCharged, schedule.getTempRemainingChargers(), schedule.getPrice());
+        schedule.setCPSchedule(ArrayTransformations.concatMaps(schedule.getCpSchedule(), suggestionsComputer.getSchedule()));
+        schedule.setWhoCharged(ArrayTransformations.concatOneDimensionMaps(schedule.getWhoCharged(), suggestionsComputer.getWhoCharged()));
+        // add back to evBidders
+        evBidders.addAll(notCharged);
+        System.out.println("Suggestions: ");
+        ArrayTransformations.printTwoDimensionalArray(suggestionsComputer.getSchedule());
+        updateLocalIDs(evBidders);
     }
 
     // updates the local IDs for the EVs, because some of the EVs were removed from the list
-    private void updateLocalIDs () {
-        for (int e = 0; e < evBidders.size(); e++) {
-            EVObject ev = evBidders.get(e);
+    private void updateLocalIDs (ArrayList<EVObject> evs) {
+        for (int e = 0; e < evs.size(); e++) {
+            EVObject ev = evs.get(e);
             ev.setLocalID(e);
         }
     }
@@ -177,6 +231,31 @@ public class Station extends Agent {
         }
     }
 
+    // finds not charged evs by optimal
+    // removes them from initially computed schedule
+    // adds them t
+    private void findNotCharged () {
+        // remove from temporary schedule
+        int[] whoCharged = schedule.getWhoCharged();
+        for (int e = 0; e < evBidders.size(); e++) {
+            EVObject ev = evBidders.get(e);
+            if (whoCharged[e] == 0) {
+                System.out.println("IM IN");
+                notCharged.add(ev);
+            }
+        }
+
+        // remove temporary
+        for (EVObject ev: notCharged) {
+            evBidders.remove(ev);
+        }
+
+        // remove from maps also
+        schedule.setCPSchedule(ArrayTransformations.removeZeroRows(schedule.getCpSchedule(), schedule.getWhoCharged(), schedule.getSlotsNumber()));
+        schedule.setWhoCharged(ArrayTransformations.removeZeroRows(schedule.getWhoCharged()));
+
+    }
+
     // returns the EV with the given ID from the evBidders list
     private EVObject locateEV (int id) {
         for (EVObject ev: evBidders) {
@@ -186,13 +265,16 @@ public class Station extends Agent {
         return null;
     }
 
-    private void removeBidder (EVObject ev) {
-        evBidders.remove(ev);
-        updateLocalIDs();
-    }
-
     public boolean isFinished () {
         return evBidders.isEmpty();
+    }
+
+    public void setCurrentSlot(int currentSlot) {
+        this.currentSlot = currentSlot;
+    }
+
+    public void setDistance(boolean distance) {
+        this.distance = distance;
     }
 
     public String toString () {

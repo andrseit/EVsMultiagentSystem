@@ -13,6 +13,8 @@ public abstract class Scheduler {
     private int[][] schedule;
     private int[] whoCharged;
 
+    private int currentSlot;
+
     // Do not forget to set the arrays
     public abstract void compute (ArrayList<EVObject> evs, int[] chargers, int[] price);
 
@@ -34,5 +36,13 @@ public abstract class Scheduler {
 
     public void setWhoCharged(int[] whoCharged) {
         this.whoCharged = whoCharged;
+    }
+
+    public void setCurrentSlot(int currentSlot) {
+        this.currentSlot = currentSlot;
+    }
+
+    public int getCurrentSlot() {
+        return currentSlot;
     }
 }

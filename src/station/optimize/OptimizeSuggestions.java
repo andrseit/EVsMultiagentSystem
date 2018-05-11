@@ -24,8 +24,11 @@ public class OptimizeSuggestions {
     private int evsNumber;
     private ArrayList<EVObject> evs;
 
+    private int currentSlot;
+
 
     public OptimizeSuggestions(int slotsNumber, ArrayList<EVObject> evs) {
+        currentSlot = 3;
         this.slotsNumber = slotsNumber;
         chargers = new int[slotsNumber];
         this.evs = evs;
@@ -37,9 +40,9 @@ public class OptimizeSuggestions {
         for (int s = 0; s < slotsNumber; s++) {
             chargers[s] = 0;
         }
-        chargers[3] = 0;
         chargers[4] = 0;
         chargers[5] = 0;
+        //chargers[6] = 0;
 
         try {
             cp = new IloCplex();
@@ -73,14 +76,18 @@ public class OptimizeSuggestions {
 
                 IloLinearNumExpr energyConstraint = cp.linearNumExpr();
                 for (int s = 0; s < slotsNumber; s++) {
-                    int d = 0;
-                    if (s < arrival)
-                        d = arrival - s;
-                    else if (s > departure)
-                        d = s - departure;
-                    distance.addTerm(-0.01*(d+1), chargesInSlot[e][s]);
-                    left.addTerm(-0.001*(s+1), chargesInSlot[e][s]);
-                    energyConstraint.addTerm(1, chargesInSlot[e][s]);
+                    if (s >= currentSlot) {
+                        int d = 0;
+                        if (s < arrival)
+                            d = arrival - s;
+                        else if (s > departure)
+                            d = s - departure;
+                        distance.addTerm(-0.01 * (d + 1), chargesInSlot[e][s]);
+                        left.addTerm(-0.001 * (s + 1), chargesInSlot[e][s]);
+                        energyConstraint.addTerm(1, chargesInSlot[e][s]);
+                    } else {
+                        cp.addEq(0, chargesInSlot[e][s]);
+                    }
                 }
                 service.addTerm(1, charges[e]);
                 cp.addLe(energyConstraint, energy);
@@ -125,7 +132,7 @@ public class OptimizeSuggestions {
                                 end = s;
                         }
                     }
-                    System.out.println("start: " + start + ", end: " + end);
+                    System.out.println("run: " + start + ", end: " + end);
                 }
             } else {
                 System.out.println("MEH!");

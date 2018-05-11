@@ -47,6 +47,6 @@ public class IncomingOffer extends ChargingSettings {
 
     public String toString () {
         return "Incoming offer by Station_" + getStationID() + ": " + getArrival() + "-" + getDeparture() + "/" + getEnergy() +
-                " cost: " + price + ", rating: " + rating + " -> " + answer;
+                " cost: " + price + ", rating: " + rating;
     }
 }

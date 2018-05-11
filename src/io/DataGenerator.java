@@ -94,7 +94,7 @@ public class DataGenerator {
                 int end = random.nextInt(Math.min(slotsNumber, maxEnd) - minEnd) + minEnd;
 
                 int inform = 0;
-                //if (start != 0 && start - minDistance + 1 != 0)
+                //if (run != 0 && run - minDistance + 1 != 0)
                     inform = random.nextInt(start - minDistance + 1);
 
                 int maxGridDistance = gridSize*2 - 1;
@@ -119,7 +119,7 @@ public class DataGenerator {
                 int s_end = random.nextInt(slotsNumber - end) + end;
                 int s_energy = random.nextInt(energy) + 1;
                 int probability = random.nextInt(100) + 1;
-                int rounds = random.nextInt(5);
+                int rounds = random.nextInt(4) + 1;
                 int temp = random.nextInt(81) + 120;
                 double s_range = ((double)temp) / 100;
                 strategy.put("start", s_start);

@@ -25,7 +25,7 @@ public class AgentSystem {
     private int[][] stationsLocations;
     private int evsNumber;
     private int slotsNumber;
-    private int[] finishedStations;
+    private Execution execution;
 
     public AgentSystem() {
 
@@ -54,7 +54,6 @@ public class AgentSystem {
         evs = new ArrayList<>();
         stations = new ArrayList<>();
         stationsLocations = new int[stationsNumber][2];
-        finishedStations = new int[stationsNumber];
         int idCounter = 0;
         for (StationData d: JSONFileParser.readOfflineStations("station.json")) {
             stations.add(new Station("Station", idCounter, evsMailbox, stationsMailbox.getMessageList(idCounter), d, slotsNumber));
@@ -69,59 +68,11 @@ public class AgentSystem {
             idCounter++;
         }
 
-
-        System.out.println("EVs send requests...");
-        for (EV ev: evs)
-            ev.sendRequests();
-
-        System.out.println("Stations receive requests...");
-        for (int s = 0; s < stationsNumber; s++) {
-            Station station = stations.get(s);
-            station.receiveRequests();
-            System.out.println(station.evBiddersString());
-            if (!station.isFinished()) {
-                station.computeSchedule();
-                station.sendOfferMessages();
-            } else
-                finishedStations[s] = 1;
-        }
-
-
-        while (!executionOver()) {
-            System.out.println("EVs receive offers and answer...");
-            for (EV ev : evs) {
-                if (!ev.isServiced()) {
-                    ev.readMessages();
-                    ev.evaluateOffers();
-                    ev.sendAnswers();
-                }
-            }
-
-            System.out.println("Stations read answers and compute suggestions...");
-            for (int s = 0; s < stationsNumber; s++) {
-                Station station = stations.get(s);
-                if (!station.isFinished()) {
-                    station.readMessages();
-                    System.out.println("Compute suggestions...");
-                    station.computeSuggestions();
-                    station.sendOfferMessages();
-                } else {
-                    finishedStations[s] = 1;
-                }
-            }
-        }
-        System.out.println("Execution successfully completed!");
-        resetFinishedStations();
+        execution = new OnlineExecution(evs, stations, slotsNumber);
     }
 
-    // checks if all stations have finished their duties
-    private boolean executionOver () {
-        if (ArrayTransformations.arraySum(finishedStations) == stationsNumber)
-            return true;
-        return false;
+    public void run() {
+        execution.execute();
     }
 
-    private void resetFinishedStations () {
-        finishedStations = new int[stationsNumber];
-    }
 }

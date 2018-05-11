@@ -45,13 +45,16 @@ public class OfferSelector {
     }
 
     public void produceAnswers () {
+        int maxRound = strategySettings.getRounds();
+        System.out.println("It is round: " + roundsCount + " and my bound is: " + maxRound);
         if (!offers.isEmpty()) {
             evaluateAllOffers();
-            int maxRound = strategySettings.getRounds();
+            System.out.println(offers.get(0).getRating());
             // if end of the conversation is reached, a final decision must be made
             if (roundsCount == maxRound) {
-                if (offers.get(0).getRating() != Integer.MAX_VALUE) {
-                    int accept = offers.get(0).getStationID();
+                IncomingOffer offer = offers.get(0);
+                if (offer.getRating() != Integer.MAX_VALUE) {
+                    int accept = offer.getStationID();
                     answers.put(accept, "ACCEPT");
                     rejectRemainingStations(accept);
                 } else {
@@ -60,7 +63,7 @@ public class OfferSelector {
                 serviced = true;
             } else if (roundsCount < maxRound) {
                 IncomingOffer offer = offers.get(0);
-                if (offer.getRating() != Integer.MAX_VALUE) {
+                if (offer.getRating() == 0.0) {
                     int accept = offer.getStationID();
                     answers.put(accept, "ACCEPT");
                     rejectRemainingStations(accept);
@@ -69,10 +72,18 @@ public class OfferSelector {
                     resetAnswers();
                 }
             }
-        } else
-            resetAnswers();
+        } else {
+            System.out.println("My list is empty");
+            if (roundsCount == maxRound) {
+                rejectRemainingStations(-1);
+                System.out.println("Is rounds count");
+                serviced = true;
+            }
+            else
+                resetAnswers();
+        }
         roundsCount++;
-        offers.clear();
+        System.out.println(answersToString());
     }
 
     public void evaluateAllOffers () {
@@ -110,7 +121,9 @@ public class OfferSelector {
         int initialDeparture = initialSettings.getDeparture();
         int initialEnergy = initialSettings.getEnergy();
 
-        int distance = SimpleMath.manhattanDistance(offerArrival, offerDeparture, offerEnergy,
+        int distance = 0;
+        if (!isInitial(offer))
+            distance = SimpleMath.manhattanDistance(offerArrival, offerDeparture, offerEnergy,
                 initialArrival, initialDeparture, initialEnergy);
 
         if (!isWithinStrategy(offer))
@@ -199,5 +212,10 @@ public class OfferSelector {
 
     public boolean isServiced() {
         return serviced;
+    }
+
+    public void clearOffers () {
+        offers.clear();
+        answers.clear();
     }
 }

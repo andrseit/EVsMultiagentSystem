@@ -171,6 +171,8 @@ public class CPLEX extends Scheduler {
 
                 setSchedule(schedule);
                 setWhoCharged(whoCharged);
+            } else {
+                System.err.println("Optimal Schedule could not be computed!");
             }
         } catch (IloException e) {
             e.printStackTrace();

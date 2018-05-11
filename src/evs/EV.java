@@ -1,6 +1,7 @@
 package evs;
 
 import messaging.message_types.OfferMessage;
+import messaging.message_types.RequestMessage;
 import station.Offer;
 import system.Agent;
 import main.ChargingSettings;
@@ -44,8 +45,8 @@ public class EV extends Agent {
     }
 
     public ChargingSettingsMessage createRequestMessage () {
-        ChargingSettings setting = new ChargingSettings(preferences.getArrival(), preferences.getDeparture(), preferences.getEnergy());
-        ChargingSettingsMessage message = new ChargingSettingsMessage(getType(), getGlobalID(), setting);
+        ChargingSettings settings = new ChargingSettings(preferences.getArrival(), preferences.getDeparture(), preferences.getEnergy());
+        RequestMessage message = new RequestMessage(getType(), getGlobalID(), settings, preferences.getLocationX(), preferences.getLocationY());
         return message;
     }
 
@@ -65,8 +66,10 @@ public class EV extends Agent {
     }
 
     protected void manageChargingSettingsMessage(ChargingSettingsMessage message) {
-        if (!(message instanceof OfferMessage))
+        if (!(message instanceof OfferMessage)) {
             System.err.println("\tWrong type of message. Expected Offer!");
+            System.exit(1);
+        }
         OfferMessage offer = (OfferMessage) message;
         int sender = message.getSenderID();
         ChargingSettings settings = message.getSettings();
@@ -82,8 +85,8 @@ public class EV extends Agent {
     public String toString () {
         ChargingSettings settings = preferences.getSettings();
         EVStrategySettings strategySettings = preferences.getStrategySettings();
-        return getType() + "_" + getGlobalID() + ": " + settings.toString() +
-                " --- " + strategySettings.toString();
+        return getType() + "_" + getGlobalID() + ": " + getInformSlot() + "->" +
+                settings.toString() + " --- " + strategySettings.toString();
     }
 
     // ABSTRACT
@@ -131,7 +134,8 @@ public class EV extends Agent {
             message = new StringMessage("EV", getGlobalID(), answers.get(id));
             sendMessage(id, message);
         }
-        offerSelector.resetAnswers();
+        //offerSelector.resetAnswers();
+        offerSelector.clearOffers();
     }
 
     public boolean isServiced() {
@@ -139,7 +143,5 @@ public class EV extends Agent {
         return offerSelector.isServiced();
     }
 
-    public void setServiced(boolean service) {
-        serviced = true;
-    }
+    public int getInformSlot () { return preferences.getInformTimePoint(); }
 }

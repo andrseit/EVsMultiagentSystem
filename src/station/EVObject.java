@@ -14,6 +14,7 @@ public class EVObject {
     private int globalID, cplexID, localID;
     private ChargingSettings settings;
     private Offer offer;
+    private int x, y, distance; // location on map, distance from station
     private boolean hasOffer;
 
     public EVObject(int globalID, int clpexID, ChargingSettings settings) {
@@ -63,12 +64,12 @@ public class EVObject {
             if (offer.getOfferEnergy() != settings.getEnergy())
                 System.err.println("Wrong energy");
         }
-        if (isDifferent(offer)) {
+        //if (isDifferent(offer)) {
             this.offer = offer;
-            hasOffer = true;
-        } else {
-            hasOffer = false;
-        }
+            //hasOffer = true;
+        //} //else {
+            //hasOffer = false;
+        //}
     }
 
     // na min ypologizetai kathe fora to oldDistance
@@ -94,11 +95,28 @@ public class EVObject {
     }
 
     public boolean hasOffer () {
-        return hasOffer;
+        //return hasOffer;
+        return offer != null;
+    }
+
+
+    public void setXY (int x, int y, int sx, int sy) {
+        this.x = x;
+        this.y = y;
+        distance = SimpleMath.manhattanDistance(x, y, sx, sy);
+    }
+
+    public void setDistance(int distance) {
+        this.distance = distance;
+    }
+
+    public int getDistance() {
+        return distance;
     }
 
     public String toString () {
         return "EV_" + globalID + ": " + settings.getArrival() + "-" + settings.getDeparture() +
-                "/" + settings.getEnergy() + "(local id = " + localID + ")";
+                "/" + settings.getEnergy() + " at < " + x + ", " + y + "> and distance = " + distance +
+                " (local id = " + localID + ")";
     }
 }

@@ -7,6 +7,7 @@ import ilog.cplex.IloCplex;
 import station.EVObject;
 import station.optimize.OptimizeSuggestions;
 import station.optimize.Scheduler;
+import various.ArrayTransformations;
 
 import java.util.ArrayList;
 
@@ -36,7 +37,6 @@ public class SuggestionsComputer extends Scheduler {
 
     // ABSTRACT
     public void compute (ArrayList<EVObject> evs, int[] chargers, int[] price) {
-
         initializeVariables(evs, chargers, price);
 
         try {
@@ -51,6 +51,7 @@ public class SuggestionsComputer extends Scheduler {
             IloLinearNumExpr service = cp.linearNumExpr();
             for (int e = 0; e < evsNumber; e++) {
                 EVObject ev = evs.get(e);
+                System.out.println(""+(getCurrentSlot() + ev.getDistance()));
                 int arrival = ev.getArrival();
                 int departure = ev.getDeparture();
                 int energy = ev.getEnergy();
@@ -60,19 +61,24 @@ public class SuggestionsComputer extends Scheduler {
 
                 IloLinearNumExpr energyConstraint = cp.linearNumExpr();
                 for (int s = 0; s < slotsNumber; s++) {
-                    int d = 0;
-                    if (s < arrival)
-                        d = arrival - s;
-                    else if (s > departure)
-                        d = s - departure;
-                    distance.addTerm(-0.01*(d+1), chargesInSlot[e][s]);
-                    left.addTerm(-0.001*(s+1), chargesInSlot[e][s]);
-                    energyConstraint.addTerm(1, chargesInSlot[e][s]);
+
+                    if (s >= getCurrentSlot() + ev.getDistance()) {
+                        int d = 0;
+                        if (s < arrival)
+                            d = arrival - s;
+                        else if (s > departure)
+                            d = s - departure;
+                        distance.addTerm(-0.01 * (d + 1), chargesInSlot[e][s]);
+                        left.addTerm(-0.001 * (s + 1), chargesInSlot[e][s]);
+                        energyConstraint.addTerm(1, chargesInSlot[e][s]);
+                    } else {
+                        cp.addEq(0, chargesInSlot[e][s]);
+                    }
                 }
                 service.addTerm(1, charges[e]);
-                cp.addLe(energyConstraint, energy);
+                //cp.addLe(energyConstraint, energy);
                 cp.addLe(energyConstraint, cp.prod(charges[e], energy));
-                cp.addGe(energyConstraint, 1);
+                cp.addGe(energyConstraint, cp.prod(1, charges[e]));
 
                 objective.add(distance);
                 objective.add(left);
@@ -118,4 +124,5 @@ public class SuggestionsComputer extends Scheduler {
         chargesInSlot = new IloNumVar[evsNumber][slotsNumber];
         charges = new IloNumVar[evsNumber];
     }
+
 }
