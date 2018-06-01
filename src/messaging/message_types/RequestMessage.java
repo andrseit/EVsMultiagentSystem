@@ -1,7 +1,6 @@
 package messaging.message_types;
 
 import main.ChargingSettings;
-import messaging.Message;
 
 /**
  * Created by Thesis on 10/5/2018.

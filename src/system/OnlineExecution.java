@@ -1,8 +1,8 @@
 package system;
 
 import evs.EV;
-import station.EVObject;
 import station.Station;
+import stats.Statistics;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,17 +20,24 @@ public class OnlineExecution extends Execution {
     @Override
     public void execute() {
 
+        printAgents();
+
+        ArrayList<EV> notServiced = new ArrayList<>();
         sortEVs();
 
         for (int s = 0; s < getSlotsNumber(); s++) {
             ArrayList<EV> evs = chooseEVs(s);
             System.out.println("Slot: " + s);
-            if (!evs.isEmpty()) {
+
+            if (!evs.isEmpty() || !notServiced.isEmpty()) {
                 System.out.println("EVs send requests...");
                 for (EV ev : evs) {
                     if (ev.getInformSlot() == s)
                         ev.sendRequests();
                 }
+
+                // add ta no serviced
+                evs.addAll(notServiced);
 
                 System.out.println("Stations receive requests...");
                 for (int st = 0; st < getStations().size(); st++) {
@@ -44,6 +51,7 @@ public class OnlineExecution extends Execution {
                         station.sendOfferMessages();
                     } else
                         getFinishedStations()[st] = 1;
+
                 }
 
 
@@ -68,14 +76,29 @@ public class OnlineExecution extends Execution {
                         } else {
                             getFinishedStations()[st] = 1;
                         }
+
                     }
                 }
+                checkResults();
                 resetFinishedStations();
             } else {
-                System.out.println("No requests!");
+                System.out.println("No requests or pending EVs!");
+            }
+
+            System.out.println("Not serviced");
+            notServiced.clear();
+            for (EV ev: evs) {
+                if (!ev.isServiced()) {
+                    System.out.println(ev.toString());
+                    ev.resetRounds();
+                    notServiced.add(ev);
+                }
+
             }
         }
         System.out.println("Execution successfully completed!");
+        Statistics statistics = new Statistics(getStations(), getSlotsNumber());
+        statistics.computeStatisticsPerStation();
 
     }
 

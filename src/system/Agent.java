@@ -26,6 +26,7 @@ public abstract class Agent {
         Message message;
         System.out.println(getType() + "_" + globalID + " receives message: ");
         while ((message = getMessenger().nextMessage()) != null) {
+            System.out.println("MESSAGE: " + message);
             if (message instanceof StringMessage)
                 checkStringMessage((StringMessage) message);
             else if (message instanceof ChargingSettingsMessage) {

@@ -1,7 +1,6 @@
 package system;
 
 import evs.EV;
-import station.EVObject;
 import station.Station;
 import various.ArrayTransformations;
 
@@ -28,9 +27,7 @@ public abstract class Execution {
 
     // checks if all stations have finished their duties
     protected boolean executionOver () {
-        if (ArrayTransformations.arraySum(finishedStations) == stations.size())
-            return true;
-        return false;
+        return ArrayTransformations.arraySum(finishedStations) == stations.size();
     }
 
     protected void resetFinishedStations () {
@@ -51,5 +48,21 @@ public abstract class Execution {
 
     public int getSlotsNumber() {
         return slotsNumber;
+    }
+
+    protected void printAgents () {
+        System.out.println("Stations in the system: ");
+        for (Station s: getStations())
+            System.out.println(s.toString());
+
+        System.out.println("\nEVs in the system: ");
+        for (EV ev: getEvs())
+            System.out.println(ev.toString());
+    }
+
+    protected void checkResults () {
+        for (Station s: stations) {
+            s.checkSchedule();
+        }
     }
 }

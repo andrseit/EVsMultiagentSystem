@@ -1,14 +1,11 @@
 package io;
 
-import javafx.scene.control.RadioMenuItem;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
 import java.io.*;
 import java.util.Random;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 
 /**
@@ -119,13 +116,14 @@ public class DataGenerator {
                 int s_end = random.nextInt(slotsNumber - end) + end;
                 int s_energy = random.nextInt(energy) + 1;
                 int probability = random.nextInt(100) + 1;
-                int rounds = random.nextInt(4) + 1;
+                int rounds = random.nextInt(4);
                 int temp = random.nextInt(81) + 120;
                 double s_range = ((double)temp) / 100;
                 strategy.put("start", s_start);
                 strategy.put("end", s_end);
                 strategy.put("energy", s_energy);
                 strategy.put("probability", probability);
+                strategy.put("rounds", rounds);
                 strategy.put("rounds", rounds);
                 strategy.put("range", s_range);
                 int priority = random.nextInt(1);

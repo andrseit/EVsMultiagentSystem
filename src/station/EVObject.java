@@ -15,13 +15,13 @@ public class EVObject {
     private ChargingSettings settings;
     private Offer offer;
     private int x, y, distance; // location on map, distance from station
-    private boolean hasOffer;
+    private boolean informed; // informed about later scheduling
+    private boolean suggestion; // if the EV accepted a suggestion
 
     public EVObject(int globalID, int clpexID, ChargingSettings settings) {
         this.globalID = globalID;
         this.cplexID = clpexID;
         this.settings = settings;
-        hasOffer = false;
     }
 
     public ChargingSettings getSettings() {
@@ -84,10 +84,7 @@ public class EVObject {
         int oldDeparture = this.offer.getOfferDeparture();
         int oldEnergy = this.offer.getOfferEnergy();
 
-        if (newArrival != oldArrival || newDeparture != oldDeparture || newEnergy != oldEnergy)
-            return true;
-        else
-            return false;
+        return newArrival != oldArrival || newDeparture != oldDeparture || newEnergy != oldEnergy;
     }
 
     public Offer getOffer() {
@@ -118,5 +115,30 @@ public class EVObject {
         return "EV_" + globalID + ": " + settings.getArrival() + "-" + settings.getDeparture() +
                 "/" + settings.getEnergy() + " at < " + x + ", " + y + "> and distance = " + distance +
                 " (local id = " + localID + ")";
+    }
+
+    public boolean isInformed() {
+        return informed;
+    }
+
+    public void setInformed(boolean informed) {
+        this.informed = informed;
+    }
+
+    public void setSuggestion () {
+        int arrival = settings.getArrival();
+        int departure = settings.getDeparture();
+        int energy = settings.getEnergy();
+
+        int offerArrival = offer.getOfferArrival();
+        int offerDeparture = offer.getOfferDeparture();
+        int offerEnergy = offer.getOfferEnergy();
+
+        if (!(offerArrival >= arrival && offerDeparture <= departure && energy == offerEnergy))
+            suggestion = true;
+    }
+
+    public boolean isSuggestion() {
+        return suggestion;
     }
 }

@@ -20,7 +20,7 @@ public abstract class Scheduler {
 
     public int[][] getSchedule() {
         if (schedule == null)
-            System.err.println("Schedule array not set!");;
+            System.err.println("Schedule array not set!");
         return schedule;
     }
 

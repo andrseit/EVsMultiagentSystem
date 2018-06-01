@@ -6,7 +6,9 @@ import evs.EVStrategySettings;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import station.StationData;
-import station.optimize.CPLEX;
+import station.optimize.ProfitCPLEX;
+import station.optimize.Scheduler;
+import station.optimize.ServiceCPLEX;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -118,13 +120,20 @@ public class JSONFileParser {
                 HashMap<String, Integer> flags = new HashMap<>();
                 flags.put("window", toIntExact((long) flagsObject.get("window")));
                 flags.put("suggestion", toIntExact((long) flagsObject.get("suggestion")));
-                flags.put("cplex", toIntExact((long) flagsObject.get("cplex")));
+                int cplex = toIntExact((long) flagsObject.get("cplex"));
+                flags.put("cplex", cplex);
                 flags.put("instant", toIntExact((long) flagsObject.get("instant")));
 
                 int[] price = readPriceFile(pricePath, slotsNumber);
 
-
-                StationData data = new StationData(x, y, num_chargers, new CPLEX(), flags);
+                Scheduler scheduler;
+                // profit
+                if (cplex == 0) {
+                    scheduler = new ProfitCPLEX();
+                } else {
+                    scheduler = new ServiceCPLEX();
+                }
+                StationData data = new StationData(x, y, num_chargers, scheduler, flags);
                 stations.add(data);
                 id++;
             }

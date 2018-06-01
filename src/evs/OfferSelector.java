@@ -1,7 +1,6 @@
 package evs;
 
 import main.ChargingSettings;
-import station.Offer;
 import various.SimpleMath;
 
 import java.util.ArrayList;
@@ -44,6 +43,10 @@ public class OfferSelector {
         answers.put(stationID, "WAITING");
     }
 
+    public void addPendingOffer (Integer stationID) {
+        answers.put(stationID, "PENDING");
+    }
+
     public void produceAnswers () {
         int maxRound = strategySettings.getRounds();
         System.out.println("It is round: " + roundsCount + " and my bound is: " + maxRound);
@@ -56,11 +59,12 @@ public class OfferSelector {
                 if (offer.getRating() != Integer.MAX_VALUE) {
                     int accept = offer.getStationID();
                     answers.put(accept, "ACCEPT");
+                    serviced = true;
                     rejectRemainingStations(accept);
                 } else {
                     rejectRemainingStations(-1);
+                    serviced = false;
                 }
-                serviced = true;
             } else if (roundsCount < maxRound) {
                 IncomingOffer offer = offers.get(0);
                 if (offer.getRating() == 0.0) {
@@ -77,7 +81,7 @@ public class OfferSelector {
             if (roundsCount == maxRound) {
                 rejectRemainingStations(-1);
                 System.out.println("Is rounds count");
-                serviced = true;
+                serviced = false;
             }
             else
                 resetAnswers();
@@ -105,9 +109,29 @@ public class OfferSelector {
 
     // @stationID: station the EV accepted its offer
     private void rejectRemainingStations (Integer stationID) {
+        if (stationID == -1) {
+            for (Integer id: answers.keySet()) {
+                if (!answers.get(id).equals("PENDING"))
+                    answers.put(id, "REJECT");
+            }
+        } else {
+            for (Integer id: answers.keySet()) {
+                if (id != stationID)
+                    answers.put(id, "REJECT");
+            }
+        }
+    }
+
+    // removes the rejected stations from the list
+    private void clearRejectedStations () {
+        // ids to be removed
+        ArrayList<Integer> ids = new ArrayList<>();
         for (Integer id: answers.keySet()) {
-            if (id != stationID)
-                answers.put(id, "REJECT");
+            if (answers.get(id).equals("REJECT"))
+                ids.add(id);
+        }
+        for (Integer id: ids) {
+            answers.remove(id);
         }
     }
 
@@ -163,10 +187,8 @@ public class OfferSelector {
 
     // checks if an offer is in initial preferences
     private boolean isInitial (IncomingOffer offer) {
-        if (offer.getArrival() >= initialSettings.getArrival() && offer.getDeparture() <= initialSettings.getDeparture() &&
-                offer.getEnergy() == initialSettings.getEnergy())
-            return true;
-        return false;
+        return offer.getArrival() >= initialSettings.getArrival() && offer.getDeparture() <= initialSettings.getDeparture() &&
+                offer.getEnergy() == initialSettings.getEnergy();
     }
 
     // checks if an offer is within strategy
@@ -174,10 +196,8 @@ public class OfferSelector {
         double newRange = offer.getDeparture() - offer.getArrival();
         double initialRange = initialSettings.getDeparture() - initialSettings.getArrival();
         double rangeDifference = newRange/initialRange;
-        if (offer.getArrival() >= strategySettings.getMinArrival() && offer.getDeparture() <= strategySettings.getMaxDeparture() &&
-                offer.getEnergy() >= strategySettings.getMinEnergy() && rangeDifference <= strategySettings.getMaxWindowRange())
-            return true;
-        return false;
+        return offer.getArrival() >= strategySettings.getMinArrival() && offer.getDeparture() <= strategySettings.getMaxDeparture() &&
+                offer.getEnergy() >= strategySettings.getMinEnergy() && rangeDifference <= strategySettings.getMaxWindowRange();
     }
 
     public ArrayList<IncomingOffer> getOffers() {
@@ -206,7 +226,8 @@ public class OfferSelector {
 
     public void resetAnswers () {
         for (Integer id: answers.keySet()) {
-            answers.put(id, "WAITING");
+            if (!answers.get(id).equals("PENDING"))
+                answers.put(id, "WAITING");
         }
     }
 
@@ -216,6 +237,10 @@ public class OfferSelector {
 
     public void clearOffers () {
         offers.clear();
-        answers.clear();
+        clearRejectedStations();
+    }
+
+    public void resetRounds () {
+        roundsCount = 0;
     }
 }

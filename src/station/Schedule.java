@@ -3,7 +3,7 @@ package station;
 import station.optimize.Scheduler;
 import various.ArrayTransformations;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 
 /**
  * Created by Thesis on 30/4/2018.
@@ -20,6 +20,12 @@ public class Schedule {
     private int[] tempRemainingChargers; // remaining chargers after optimal computation
     private int[] price;
 
+    private ArrayList<Integer> accepted; // for debugging, how many EVs accepted
+                                        // can be later used as a log of who charged
+    private ArrayList<EVObject> chargedEVs; // as the above, delete the above when debugging ends
+
+    private ArrayList<Integer> rejected; // same as above
+
     public Schedule(int slotsNumber, int chargersNumber, Scheduler scheduler) {
         this.scheduler = scheduler;
         this.slotsNumber = slotsNumber;
@@ -33,6 +39,9 @@ public class Schedule {
         }
         setPrice();
 
+        accepted = new ArrayList<>();
+        chargedEVs = new ArrayList<>();
+        rejected = new ArrayList<>();
     }
 
     // ABSTRACT - method that sets the initial price
@@ -56,7 +65,12 @@ public class Schedule {
     }
 
     public void updateTemporaryChargers () {
-        for (int s = 0; s < cpSchedule[0].length; s++) {
+        System.arraycopy(remainingChargers, 0, tempRemainingChargers, 0, remainingChargers.length);
+        System.out.println("Why?");
+        ArrayTransformations.printOneDimensionalArray(tempRemainingChargers);
+        System.out.println("CP Schedule");
+        ArrayTransformations.printTwoDimensionalArray(cpSchedule);
+        for (int s = 0; s < slotsNumber; s++) {
             for (int e = 0; e < cpSchedule.length; e++) {
                 tempRemainingChargers[s] -= cpSchedule[e][s];
                 if (tempRemainingChargers[s] < 0) {
@@ -106,5 +120,44 @@ public class Schedule {
 
     public int getSlotsNumber() {
         return slotsNumber;
+    }
+
+    public void addAccepted (int i) {
+        if (!alreadyAccepted(i))
+            accepted.add(i);
+    }
+
+    public int getAcceptedNumber() {
+        return accepted.size();
+    }
+
+    public boolean alreadyAccepted(int i) {
+        if (accepted.contains(i)) {
+            System.err.println("EV " + i + " has already accepted!");
+            System.exit(1);
+        }
+        return false;
+    }
+
+
+    public void addRejected (int i) {
+        if (!alreadyRejected(i))
+            rejected.add(i);
+    }
+
+    public boolean alreadyRejected(int i) {
+        if (rejected.contains(i)) {
+            System.err.println("EV " + i + " has already accepted!");
+            System.exit(1);
+        }
+        return false;
+    }
+
+    public void addChargedEV (EVObject ev) {
+        chargedEVs.add(ev);
+    }
+
+    public ArrayList<EVObject> getChargedEVs () {
+        return chargedEVs;
     }
 }

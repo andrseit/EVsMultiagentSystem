@@ -1,19 +1,19 @@
 package main;
 
-import station.EVObject;
-import station.negotiation.SuggestionsComputer;
+import debugging.Debugging;
 import system.AgentSystem;
-import various.ArrayTransformations;
+import various.SimpleMath;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
+import javax.lang.model.util.SimpleElementVisitor6;
 
 /**
  * Created by Thesis on 26/4/2018.
  */
 public class Main {
     public static void main(String[] args) {
-        AgentSystem system = new AgentSystem();
+
+
+        AgentSystem system = new AgentSystem(true);
         system.run();
 
         /*

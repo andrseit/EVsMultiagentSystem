@@ -1,9 +1,11 @@
 package station;
 
+import debugging.Debugging;
 import messaging.message_types.OfferMessage;
 import messaging.message_types.RequestMessage;
 import station.negotiation.SuggestionsComputer;
 import station.optimize.Scheduler;
+import stats.TimeStats;
 import system.Agent;
 import main.ChargingSettings;
 import messaging.Mailbox;
@@ -25,10 +27,17 @@ public class Station extends Agent {
     private SuggestionsComputer suggestionsComputer;
     private ArrayList<EVObject> evBidders;
     private ArrayList<EVObject> notCharged;
+    private int requests;
     private int currentSlot;
     private boolean suggestions;
+    private boolean instant;
+    private int maxSlot; // if instant then what is the slot that it has to schedule
+    private boolean hasOffers; // if the station will make offers at that slot
 
     private boolean distance; // if distance matters
+
+    private TimeStats scheduleTimer;
+    private TimeStats suggestionsTimer;
 
     public Station(String type, int globalID, Mailbox receiversMailbox, MessageList incomingMessages,
                    StationData data, int slotsNumber) {
@@ -36,10 +45,26 @@ public class Station extends Agent {
         this.data = data;
         evBidders = new ArrayList<>();
         notCharged = new ArrayList<>();
+        requests = 0;
         schedule = new Schedule(slotsNumber, data.getChargersNumber(), data.getScheduler());
         suggestionsComputer = new SuggestionsComputer();
-        suggestions = false;
+
+        if (data.getStrategyFlags().get("suggestion") == 1)
+            suggestions = true;
+        else
+            suggestions = false;
+        System.out.println("Suggestions: " + suggestions);
+
+        if (data.getStrategyFlags().get("instant") == 1)
+            instant = true;
+        else
+            instant = false;
+
         currentSlot = 0;
+        maxSlot = Integer.MAX_VALUE;
+
+        scheduleTimer = new TimeStats();
+        suggestionsTimer = new TimeStats();
     }
 
     public void createMessage () {
@@ -56,6 +81,18 @@ public class Station extends Agent {
              else {
                 System.err.println("Wrong message type!");
                 System.exit(1);
+            }
+        }
+        // inform that the station is instant and when it will inform
+        if (instant && currentSlot != maxSlot) {
+            System.out.println("Station_" + getGlobalID() + " sending later message!");
+            for (int e = 0; e < evBidders.size(); e++) {
+                EVObject ev = evBidders.get(e);
+                if (!ev.isInformed()) {
+                    int globalID = ev.getGlobalID();
+                    getMessenger().sendMessage(globalID, new StringMessage("Station", getGlobalID(), "Later"));
+                    ev.setInformed(true);
+                }
             }
         }
     }
@@ -81,7 +118,6 @@ public class Station extends Agent {
                 getMessenger().sendMessage(globalID, message);
             }
         }
-        // create unavailability message
     }
 
     protected void checkStringMessage(StringMessage message) {
@@ -93,7 +129,10 @@ public class Station extends Agent {
         //System.out.println("Sender: " + sender);
         if (text.equals("ACCEPT")) {
             System.out.println("EV_" + sender + " accepted " + ev.getLocalID());
+            ev.setSuggestion();
             schedule.addToSchedule(ev.getLocalID());
+            schedule.addAccepted(ev.getGlobalID());// debugging
+            schedule.addChargedEV(ev);
             evBidders.remove(ev);
         }
         // if the EV is waiting leave it in the evBidders list to continue with the negotiations
@@ -104,13 +143,19 @@ public class Station extends Agent {
         else if (text.equals("REJECT")) {
             System.out.println("EV_" + sender + " rejected the offer");
             evBidders.remove(ev);
+            schedule.addRejected(ev.getGlobalID());
+        } else if (text.equals("PENDING")) {
+            System.out.println("EV will wait for me to schedule later.");
         } else {
             System.err.println("EV_" + sender + " sent wrong Message");
             System.err.println("Message was: " + message.getText());
             System.exit(1);
         }
         if (evBidders.isEmpty())
-            suggestions = false;
+            if (data.getStrategyFlags().get("suggestion") == 1)
+                suggestions = true;
+            else
+                suggestions = false;
     }
 
     protected void manageChargingSettingsMessage(ChargingSettingsMessage message) {
@@ -128,7 +173,12 @@ public class Station extends Agent {
         ev.setLocalID(evBidders.size());
         if (distance)
             ev.setXY(m.getX(), m.getY(), data.getX(), data.getY());
-        evBidders.add(ev);
+        if (arrival - ev.getDistance() < maxSlot)
+            maxSlot = arrival - ev.getDistance();
+        if (!schedule.alreadyAccepted(ev.getGlobalID()) && !schedule.alreadyRejected(ev.getGlobalID())) {
+            evBidders.add(ev);
+            requests++;
+        }
     }
 
     public String evBiddersString (ArrayList<EVObject> evs) {
@@ -140,19 +190,27 @@ public class Station extends Agent {
     }
 
     public void computeOffers () {
+        System.out.println("Computing schedule (inner sout)");
         notCharged.clear();
+
+        scheduleTimer.startTimer();
         computeSchedule();
+        scheduleTimer.stopTimer();
+
         if (suggestions) {
-            schedule.updateTemporaryChargers();
             findNotCharged();
             System.out.println(notCharged);
             if (!notCharged.isEmpty()) {
+                schedule.updateTemporaryChargers();
+                suggestionsTimer.startTimer();
                 computeSuggestions();
+                suggestionsTimer.stopTimer();
             }
         } else {
             suggestions = true;
         }
         setOffers();
+        hasOffers = true;
     }
 
     public void computeSchedule () {
@@ -169,6 +227,7 @@ public class Station extends Agent {
         scheduler.compute(evBidders, schedule.getRemainingChargers(), schedule.getPrice());
         schedule.setCPSchedule(scheduler.getSchedule());
         schedule.setWhoCharged(scheduler.getWhoCharged());
+        Debugging.exceedChargers(schedule.getCpSchedule(), data.getChargersNumber());
         System.out.println("Optimal Schedule: ");
         ArrayTransformations.printTwoDimensionalArray(scheduler.getSchedule());
     }
@@ -186,6 +245,7 @@ public class Station extends Agent {
         suggestionsComputer.compute(notCharged, schedule.getTempRemainingChargers(), schedule.getPrice());
         schedule.setCPSchedule(ArrayTransformations.concatMaps(schedule.getCpSchedule(), suggestionsComputer.getSchedule()));
         schedule.setWhoCharged(ArrayTransformations.concatOneDimensionMaps(schedule.getWhoCharged(), suggestionsComputer.getWhoCharged()));
+        Debugging.exceedChargers(schedule.getCpSchedule(), data.getChargersNumber());
         // add back to evBidders
         evBidders.addAll(notCharged);
         System.out.println("Suggestions: ");
@@ -266,10 +326,22 @@ public class Station extends Agent {
     }
 
     public boolean isFinished () {
-        return evBidders.isEmpty();
+        if (evBidders.isEmpty()) {
+            System.out.println("I have no other evs to schedule!");
+            maxSlot = Integer.MAX_VALUE;
+        }
+        else {
+            if (currentSlot != maxSlot && instant)
+                System.out.println("I am instant. I will schedule at slot: " + maxSlot);
+        }
+        return evBidders.isEmpty() || (currentSlot != maxSlot && instant);
     }
 
     public void setCurrentSlot(int currentSlot) {
+        if (maxSlot < currentSlot) {
+            System.err.println("Station @manageChargingSettingMessage: MaxSlot < currentSlot!");
+            System.exit(1);
+        }
         this.currentSlot = currentSlot;
     }
 
@@ -277,8 +349,46 @@ public class Station extends Agent {
         this.distance = distance;
     }
 
+    public void checkSchedule () {
+
+        if (Debugging.exceedAccepted(schedule.getSchedule(), schedule.getAcceptedNumber())) {
+            System.err.println("Charging EVs exceed the number of the chargers in some slot!");
+            System.exit(1);
+        }
+        if (Debugging.exceedChargers(schedule.getSchedule(), data.getChargersNumber())) {
+            System.err.println("Charging EVs exceed the number of the chargers in some slot!");
+            System.exit(1);
+        }
+    }
+
     public String toString () {
         return "Station_" + getGlobalID() + " <" + data.getX() + ", " + data.getY() + "> : " +
-                "chargers: " + data.getChargersNumber();
+                "chargers: " + data.getChargersNumber() + "\n" + data.strategiesToString() + "\n";
     }
+
+    // for the statistics
+    public int[][] getFinalSchedule () {
+        return schedule.getSchedule();
+    }
+
+    public int getRequests() {
+        return requests;
+    }
+
+    public ArrayList<EVObject> getChargedEvs () {
+        return schedule.getChargedEVs();
+    }
+
+    public int getChargersSlots () {
+        return data.getChargersNumber() * schedule.getSlotsNumber();
+    }
+
+    public double getSchedulingTime () {
+        return scheduleTimer.getMillis();
+    }
+
+    public double getSuggestionsTime () {
+        return suggestionsTimer.getMillis();
+    }
+
 }

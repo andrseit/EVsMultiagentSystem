@@ -2,6 +2,7 @@ package system;
 
 import evs.EV;
 import station.Station;
+import stats.Statistics;
 
 import java.util.ArrayList;
 
@@ -16,6 +17,9 @@ public class OfflineExecution extends Execution{
 
     @Override
     public void execute() {
+
+        printAgents();
+
         System.out.println("EVs send requests...");
         for (EV ev: getEvs())
             ev.sendRequests();
@@ -57,7 +61,10 @@ public class OfflineExecution extends Execution{
                 }
             }
         }
+        checkResults();
         System.out.println("Execution successfully completed!");
         resetFinishedStations();
+        Statistics statistics = new Statistics(getStations(), getSlotsNumber());
+        statistics.computeStatisticsPerStation();
     }
 }

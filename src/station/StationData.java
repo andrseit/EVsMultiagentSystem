@@ -43,4 +43,15 @@ public class StationData {
     public int getY() {
         return y;
     }
+
+    public String strategiesToString () {
+        String str = "Strategies: ";
+        if (strategyFlags.get("cplex") == 0)
+            str = str + "Profit";
+        else
+            str = str + "Service";
+        str += ", Instant Suggestion: " + strategyFlags.get("suggestion") + ", " +
+            "Instant Offer: " + strategyFlags.get("instant");
+        return str;
+    }
 }

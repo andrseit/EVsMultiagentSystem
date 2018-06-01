@@ -3,7 +3,6 @@ package station.optimize;
 import ilog.concert.IloException;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
-import ilog.concert.cppimpl.IloNumExpr;
 import ilog.cplex.IloCplex;
 import station.EVObject;
 
@@ -15,8 +14,6 @@ import java.util.ArrayList;
 public class OptimizeSuggestions {
 
     private IloCplex cp;
-    private IloNumVar[][] vStart;
-    private IloNumVar[][] vEnd;
     private IloNumVar[][] chargesInSlot;
     private IloNumVar[] charges;
     private int[] chargers;
@@ -34,8 +31,6 @@ public class OptimizeSuggestions {
         this.evs = evs;
         evsNumber = evs.size();
         charges = new IloNumVar[evsNumber];
-        vStart = new IloNumVar[evsNumber][slotsNumber];
-        vEnd = new IloNumVar[evsNumber][slotsNumber];
         chargesInSlot = new IloNumVar[evsNumber][slotsNumber];
         for (int s = 0; s < slotsNumber; s++) {
             chargers[s] = 0;

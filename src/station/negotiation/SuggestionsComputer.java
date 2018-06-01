@@ -5,9 +5,7 @@ import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import station.EVObject;
-import station.optimize.OptimizeSuggestions;
 import station.optimize.Scheduler;
-import various.ArrayTransformations;
 
 import java.util.ArrayList;
 

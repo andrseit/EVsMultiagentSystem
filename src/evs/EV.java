@@ -2,7 +2,6 @@ package evs;
 
 import messaging.message_types.OfferMessage;
 import messaging.message_types.RequestMessage;
-import station.Offer;
 import system.Agent;
 import main.ChargingSettings;
 import messaging.Mailbox;
@@ -12,9 +11,7 @@ import messaging.message_types.ChargingSettingsMessage;
 import messaging.message_types.StringMessage;
 import various.SimpleMath;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 
 /**
@@ -28,7 +25,6 @@ public class EV extends Agent {
     private int[][] stationsLocations;
 
     private OfferSelector offerSelector;
-    private boolean serviced;
 
     public EV(String type, int globalID, Mailbox receiversMailbox, MessageList incomingMessages,
               EVPreferences preferences, int[][] stationsLocations) {
@@ -36,7 +32,6 @@ public class EV extends Agent {
         this.preferences = preferences;
         this.stationsLocations = stationsLocations;
         offerSelector = new OfferSelector(preferences.getSettings(), preferences.getStrategySettings());
-        serviced = false;
     }
 
     public void createMessage () {
@@ -51,6 +46,10 @@ public class EV extends Agent {
     }
 
     protected void checkStringMessage(StringMessage message) {
+        if (isServiced()) {
+            System.err.println("EV_" + getGlobalID() + " has already been serviced!");
+            System.exit(1);
+        }
         String text = message.getText();
         int sender = message.getSenderID();
         if (text.equals("Currently Not Available")) {
@@ -60,12 +59,18 @@ public class EV extends Agent {
             System.out.println("\tStation is unable to charge me");
             // does not add the station in the offer selector as their conversation is over
             // it is unable to charge the EV
-        } else {
+        } else if (text.equals("Later")) {
+            System.out.println("\tStation_" + sender+ " will compute an offer later");
+            offerSelector.addPendingOffer(sender);
+        } else
             System.out.println("\tWrong Message");
-        }
     }
 
     protected void manageChargingSettingsMessage(ChargingSettingsMessage message) {
+        if (isServiced()) {
+            System.err.println("EV_" + getGlobalID() + " has already been serviced!");
+            System.exit(1);
+        }
         if (!(message instanceof OfferMessage)) {
             System.err.println("\tWrong type of message. Expected Offer!");
             System.exit(1);
@@ -129,10 +134,10 @@ public class EV extends Agent {
         HashMap<Integer, String> answers = offerSelector.getAnswers();
         for (Integer id: offerSelector.getAnswers().keySet()) {
             String answer = answers.get(id);
-            if (answer.equals("ACCEPT"))
-                serviced = true;
-            message = new StringMessage("EV", getGlobalID(), answers.get(id));
-            sendMessage(id, message);
+            if (!answer.equals("PENDING")) {
+                message = new StringMessage("EV", getGlobalID(), answer);
+                sendMessage(id, message);
+            }
         }
         //offerSelector.resetAnswers();
         offerSelector.clearOffers();
@@ -144,4 +149,9 @@ public class EV extends Agent {
     }
 
     public int getInformSlot () { return preferences.getInformTimePoint(); }
+
+    public void resetRounds () {
+        offerSelector.resetRounds();
+    }
+
 }

@@ -7,7 +7,6 @@ import io.JSONFileParser;
 import messaging.Mailbox;
 import station.Station;
 import station.StationData;
-import various.ArrayTransformations;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ public class AgentSystem {
     private int slotsNumber;
     private Execution execution;
 
-    public AgentSystem() {
+    public AgentSystem(boolean offline) {
 
         try {
             Reader reader = new FileReader("files/system.txt");
@@ -46,7 +45,7 @@ public class AgentSystem {
         DataGenerator dt = new DataGenerator(stationsNumber, evsNumber, slotsNumber, 3);
         //dt.generateStationFile();
         dt.readStationFile();
-        //dt.generateEVsFile(2, 5, 0.4, 1.4);
+        //dt.generateEVsFile(2, 3, 0.4, 1.4);
         dt.generatePriceFile();
 
         stationsMailbox = new Mailbox(stationsNumber);
@@ -68,7 +67,10 @@ public class AgentSystem {
             idCounter++;
         }
 
-        execution = new OnlineExecution(evs, stations, slotsNumber);
+        if (offline)
+            execution = new OfflineExecution(evs, stations, slotsNumber);
+        else
+            execution = new OnlineExecution(evs, stations, slotsNumber);
     }
 
     public void run() {

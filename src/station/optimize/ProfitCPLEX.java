@@ -11,7 +11,7 @@ import java.util.ArrayList;
 /**
  * Created by Thesis on 30/4/2018.
  */
-public class CPLEX extends Scheduler {
+public class ProfitCPLEX extends Scheduler {
 
     // take these as inputs
     private ArrayList<EVObject> evs;

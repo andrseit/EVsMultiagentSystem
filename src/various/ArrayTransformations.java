@@ -20,9 +20,7 @@ public class ArrayTransformations {
         int arrayColumns = line.length;
         int[][] result = new int[arrayRows + 1][arrayColumns];
         int[][] add = new int[1][arrayColumns];
-        for (int i = 0; i < line.length; i++) {
-            add[0][i] = line[i];
-        }
+        System.arraycopy(line, 0, add[0], 0, line.length);
         System.arraycopy(array, 0, result, 0, arrayRows);
         System.arraycopy(add, 0, result, arrayRows, 1);
         return result;
@@ -111,5 +109,35 @@ public class ArrayTransformations {
             first = new_full_schedule_map;
         }
         return first;
+    }
+
+    public static int[] getColumnsCount(int[][] array) {
+        int columns = array[0].length;
+
+        int[] final_array = new int[columns];
+
+        for (int c = 0; c < columns; c++) {
+            for (int[] anArray : array) {
+                final_array[c] += anArray[c];
+            }
+        }
+
+        /*
+        for(int i = 0; i < final_array.length; i++) {
+            System.out.print(final_array[i] + " ");
+        }
+        */
+        return final_array;
+    }
+
+    // counts the sum of the values of all the cells in an 2d array
+    public static int cellsSum (int[][] array) {
+        int sum = 0;
+        for (int i = 0; i < array.length; i++) {
+            for (int j = 0; j < array[i].length; j++) {
+                sum += array[i][j];
+            }
+        }
+        return sum;
     }
 }
